@@ -1,73 +1,49 @@
-/* Using the database database.csv.
-    Create a function named countStudents.
-    It should accept a path in argument (same as in 2-read_file.js)
-    The script should attempt to read the database file asynchronously
-    The function should return a Promise
-    If the database is not available, it should throw an error
-    with the text Cannot load the database
-    If the database is available, it should log the following message
-    to the console "Number of students: NUMBER_OF_STUDENTS"
-    It should log the number of students in each field,
-    and the list with the following format:
-    Number of students in FIELD: 6. List: LIST_OF_FIRSTNAMES
-    CSV file can contain empty lines (at the end)
-    and they are not a valid student!
- */
 const fs = require('fs');
 
 /**
- * readData: reads the data and counts the
- * number of students in each field.
- * @param {list} data - list of students
+ * Counts the students in a CSV data file.
+ * @param {String} dataPath The path to the CSV data file.
+ * @author Bezaleel Olakunori <https://github.com/B3zaleel>
  */
-const readData = (data) => {
-  const logs = [];
-  const studentsArray = data.trim().split('\n').slice(1);
-
-  const studentInfo = `Number of students: ${studentsArray.length}`;
-  logs.push(studentInfo);
-  console.log(studentInfo);
-
-  const students = studentsArray.map((student) => {
-    const fields = student.replace('\r', '').split(',');
-    return fields;
-  });
-
-  const categories = [...new Set(students.map((student) => student[student.length - 1]))];
-
-  categories.forEach((category) => {
-    const filteredStudents = students.filter(
-      (student) => student[student.length - 1] === category,
-    ).map((student) => student[0]);
-
-    const info = `Number of students in ${category
-    }: ${filteredStudents.length}. List: ${filteredStudents.join(', ')}`;
-    logs.push(info);
-    console.log(info);
-  });
-
-  return logs;
-};
-
-/**
- * countStudents - Reads the file asynchronously.
- * @param {string} database - path to database file
- * @returns promise
- */
-const countStudents = (database) => {
-  const readFilePromise = new Promise((resolve, reject) => {
-    if (!database) {
+const countStudents = (dataPath) => new Promise((resolve, reject) => {
+  fs.readFile(dataPath, 'utf-8', (err, data) => {
+    if (err) {
       reject(new Error('Cannot load the database'));
     }
-    fs.readFile(database, 'utf8', (error, data) => {
-      if (error) {
-        reject(Error('Cannot load the database'));
-      } else {
-        resolve(readData(data));
+    if (data) {
+      const fileLines = data
+        .toString('utf-8')
+        .trim()
+        .split('\n');
+      const studentGroups = {};
+      const dbFieldNames = fileLines[0].split(',');
+      const studentPropNames = dbFieldNames
+        .slice(0, dbFieldNames.length - 1);
+
+      for (const line of fileLines.slice(1)) {
+        const studentRecord = line.split(',');
+        const studentPropValues = studentRecord
+          .slice(0, studentRecord.length - 1);
+        const field = studentRecord[studentRecord.length - 1];
+        if (!Object.keys(studentGroups).includes(field)) {
+          studentGroups[field] = [];
+        }
+        const studentEntries = studentPropNames
+          .map((propName, idx) => [propName, studentPropValues[idx]]);
+        studentGroups[field].push(Object.fromEntries(studentEntries));
       }
-    });
+
+      const totalStudents = Object
+        .values(studentGroups)
+        .reduce((pre, cur) => (pre || []).length + cur.length);
+      console.log(`Number of students: ${totalStudents}`);
+      for (const [field, group] of Object.entries(studentGroups)) {
+        const studentNames = group.map((student) => student.firstname).join(', ');
+        console.log(`Number of students in ${field}: ${group.length}. List: ${studentNames}`);
+      }
+      resolve(true);
+    }
   });
-  return readFilePromise;
-};
+});
 
 module.exports = countStudents;
